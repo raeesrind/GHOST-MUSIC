@@ -1,7 +1,7 @@
 # Groove — Discord Music & Utility Bot
 
 > **Originally developed by [not.blaxe](https://discord.com/users/689047015665172569)**
-> This project was leaked by a friend of the developer. Following the leak, **AeroX Development** has officially open-sourced it with the full consent of the original developer.
+> This project was leaked by a friend of the developer. Following the leak, **AeroX Development** has open-sourced it with the consent of the original developer.
 >
 > **AeroX Development:** [discord.gg/aerox](https://discord.gg/aerox)
 
