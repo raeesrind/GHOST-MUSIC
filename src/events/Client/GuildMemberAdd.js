@@ -1,4 +1,6 @@
 const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
+const { SUPPORT_SERVER_ID, NO_PREFIX_DAYS } = require("../../config");
+const buildChecker = require("../../utils/checkNoPrefixAccess");
 
 module.exports = {
   name: "guildMemberAdd",
@@ -28,8 +30,61 @@ module.exports = {
     } catch (error) {
       console.error("Error in guildMemberAdd event:", error);
     }
+
+    if (member.guild.id === SUPPORT_SERVER_ID) {
+      await handleSupportServerJoin(client, member);
+    }
   },
 };
+
+async function handleSupportServerJoin(client, member) {
+  const oldInvites = client.supportInviteCache?.get(member.guild.id) || new Map();
+
+  let newInvites;
+  try {
+    newInvites = await member.guild.invites.fetch();
+  } catch {
+    return;
+  }
+
+  if (!client.supportInviteCache) client.supportInviteCache = new Map();
+  client.supportInviteCache.set(
+    member.guild.id,
+    new Map(newInvites.map(inv => [inv.code, inv.uses]))
+  );
+
+  const usedInvite = newInvites.find(inv => {
+    const oldUses = oldInvites.get(inv.code) || 0;
+    return inv.uses > oldUses;
+  });
+
+  if (!usedInvite) return;
+
+  const row = client.db.prepare(
+    'SELECT * FROM invite_tracking WHERE invite_code = ?'
+  ).get(usedInvite.code);
+
+  if (!row) return;
+
+  const newCount = row.join_count + 1;
+  client.db.prepare(
+    'UPDATE invite_tracking SET join_count = ? WHERE user_id = ?'
+  ).run(newCount, row.user_id);
+
+  if (newCount >= 3) {
+    const checker = buildChecker(client.db, client.config);
+    checker.grantAccess(row.user_id, row.user_id, 'invite', NO_PREFIX_DAYS);
+
+    const user = await client.users.fetch(row.user_id).catch(() => null);
+    if (user) {
+      user.send(
+        `🎉 **No-Prefix Access Granted!**\n` +
+        `Your server now has **no-prefix access for ${NO_PREFIX_DAYS} days!**\n` +
+        `Use commands without the \`,\` prefix — enjoy! 🚀`
+      ).catch(() => {});
+    }
+  }
+}
 
 async function trackInvite(client, member) {
   try {

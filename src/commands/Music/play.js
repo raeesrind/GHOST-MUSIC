@@ -872,7 +872,7 @@ module.exports = {
         if (idleDuration > 5 * 60 * 1000) {
           try {
             const { getVoiceConnection } = require('@discordjs/voice');
-            const connection = getVoiceConnection(message.guild.id);
+            const connection = getVoiceConnection(message.guild.id, client.user.id);
 
             if (connection) {
               connection.rejoin({

@@ -1,0 +1,35 @@
+# ─── Environment ───────────────────────────────────────────────
+.env
+.env.example
+
+# ─── Config (secrets) ──────────────────────────────────────────
+config.json
+src/config.json
+
+# ─── Databases (runtime) ───────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+ghost.db
+
+# ─── Dependencies ──────────────────────────────────────────────
+node_modules/
+
+# ─── OS files ──────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Logs ──────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ─── Archives ──────────────────────────────────────────────────
+*.zip
+assets.zip
+
+# ─── Runtime / temp ────────────────────────────────────────────
+prompt.txt
+
+# ─── Separate codebase ─────────────────────────────────────────
+/Falcron/

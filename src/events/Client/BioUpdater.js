@@ -1,7 +1,7 @@
 const { Routes } = require('discord.js');
 
 module.exports = {
-    name: "clientReady",
+    name: "ready",
     run: async (client) => {
         const updateBio = async () => {
             try {
@@ -13,7 +13,7 @@ module.exports = {
                     return n.toString();
                 };
 
-                const bio = `**@ groove • ${formatK(totalUsers)}** __users__ **• ${totalCommands}+** __commands__\n\n` +
+                const bio = `**@ ghost • ${formatK(totalUsers)}** __users__ **• ${totalCommands}+** __commands__\n\n` +
                     `**•** __High-Quality__ & __Lag-Free__ Music\n` +
                     `**•** Supports __Spotify__, __Apple Music__ & more\n` +
                     `**•** __Moderation__, __Utility__ & much more!`;

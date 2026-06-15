@@ -4,7 +4,7 @@ const Spotify = require("kazagumo-spotify");
 
 const searchEngines = {
   DEEZER: "dzsearch",
-  SPOTIFY: "spsearch",
+  SPOTIFY: "spotify",
   YOUTUBE: "ytsearch",
   JIO_SAAVAN: "jssearch",
   APPLE_MUSIC: "amsearch",
@@ -13,9 +13,13 @@ const searchEngines = {
   SOUNDCLOUD: "scsearch"
 };
 
-const fallbackEngines = ["ytmsearch", "amsearch", "spsearch", "ytsearch"];
+const fallbackEngines = ["ytmsearch", "amsearch", "spotify", "ytsearch"];
 
 module.exports = function loadPlayerManager(client) {
+  if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
+    console.warn('[WARNING] SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET missing. Spotify will not work.');
+  }
+
   const manager = new Kazagumo(
     {
       defaultSearchEngine: client.config.node_source || "ytmsearch",
@@ -23,16 +27,16 @@ module.exports = function loadPlayerManager(client) {
         const guild = client.guilds.cache.get(guildId);
         if (guild) guild.shard.send(payload);
       },
-      plugins: client.config.spotifyId ? [
+      plugins: [
         new Spotify({
-          clientId: client.config.spotifyId,
-          clientSecret: client.config.spotifySecret,
+          clientId: process.env.SPOTIFY_CLIENT_ID,
+          clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
           playlistPageLimit: 1,
           albumPageLimit: 1,
           searchLimit: 10,
-          searchMarket: 'IN',
+          searchMarket: 'US',
         }),
-      ] : [],
+      ],
     },
     new Connectors.DiscordJS(client),
     client.config.nodes,
@@ -82,6 +86,22 @@ module.exports = function loadPlayerManager(client) {
 
       for (const engine of searchEngineList) {
         if (!engine) continue;
+
+        const pluginEngine = engine === 'spsearch' ? 'spotify' : engine;
+
+        if (pluginEngine === 'spotify') {
+          try {
+            const spotifyResult = await originalSearch(cleanQuery, { ...options, engine: 'spotify' });
+            if (spotifyResult && spotifyResult.tracks && spotifyResult.tracks.length > 0) {
+              return spotifyResult;
+            }
+            continue;
+          } catch (spotifyErr) {
+            console.warn(`[Search] Spotify engine failed, trying fallback: ${spotifyErr.message?.slice(0, 80)}`);
+            continue;
+          }
+        }
+
         const searchQuery = engine.includes(':') ? cleanQuery : `${engine}:${cleanQuery}`;
         const searchRes = await node.rest.resolve(searchQuery).catch(() => null);
         if (searchRes && searchRes.loadType !== 'EMPTY' && searchRes.loadType !== 'ERROR' && searchRes.loadType !== 'NO_MATCHES') {
@@ -90,7 +110,12 @@ module.exports = function loadPlayerManager(client) {
       }
     }
 
-    return originalSearch(cleanQuery, options);
+    try {
+      return originalSearch(cleanQuery, options);
+    } catch (finalErr) {
+      console.warn(`[Search] Final fallback search failed: ${finalErr.message?.slice(0, 80)}`);
+      return { type: "SEARCH", tracks: [] };
+    }
   };
 
   function processSearchResult(res, requester) {

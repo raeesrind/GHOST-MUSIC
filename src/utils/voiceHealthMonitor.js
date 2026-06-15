@@ -191,11 +191,16 @@ class VoiceHealthMonitor {
             if (isIdle) {
                 const guildPrefix = this.client.db.prefixes.get(player.guildId);
                 const prefix = guildPrefix?.prefix || this.client.prefix;
-                await this.client.rest
-                    .put(`/channels/${player.voiceId}/voice-status`, {
-                        body: { status: `use **${prefix}play** to add songs` },
-                    })
-                    .catch(() => null);
+                    await this.client.rest
+                        .put(`/channels/${player.voiceId}/voice-status`, {
+                            body: { status: `use **${prefix}play** to add songs` },
+                        })
+                        .catch(() => {
+                            this.client.logger?.log(
+                                `[VoiceHealth] Failed to update voice status for idle player in guild ${player.guildId}`,
+                                'debug'
+                            );
+                        });
             }
 
             if (player.playing && player.queue?.current) {

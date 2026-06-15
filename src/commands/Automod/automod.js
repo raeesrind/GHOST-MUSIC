@@ -573,7 +573,7 @@ module.exports = {
             const sections = [];
 
             if (s.whitelistUsers?.length > 0) {
-                const userList = s.whitelistUsers.map((id, i) => `\`${(i + 1).toString().padStart(2, '0')}.\` : <@${id}>`).join('\n');
+                const userList = s.whitelistUsers.map((id, i) => `\`${(i + 1).toString().padStart(2, '0')}.\` : \u200B<@${id}>`).join('\n');
                 sections.push(`${emoji.hastag} **__Users__**\n${userList}`);
             }
 

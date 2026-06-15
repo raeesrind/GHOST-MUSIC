@@ -77,7 +77,7 @@ class Logger {
       }
       default:
         throw new TypeError(
-          "Logger type must be either warn, debug, log, ready, cmd or error.",
+          "Logger type must be either warn, debug, log, ready, cmd, event or error.",
         );
     }
   }

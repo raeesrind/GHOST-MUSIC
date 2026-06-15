@@ -68,7 +68,7 @@ class AutomodManager {
             if (!me || !me.permissions.has(PermissionFlagsBits.ManageGuild)) return;
             const rules = await guild.autoModerationRules.fetch().catch(() => null);
             if (!rules) return;
-            const nsfwRuleName = "Groove Safety: NSFW Filter";
+            const nsfwRuleName = "GHOST Safety: NSFW Filter";
             const existingNsfw = rules.find(r => r.name === nsfwRuleName);
             if (settings.antiNsfw && !existingNsfw) {
                 await guild.autoModerationRules.create({
@@ -80,7 +80,7 @@ class AutomodManager {
                     },
                     actions: [{
                         type: 1,
-                        metadata: { customMessage: "This message was blocked by Groove's NSFW Filter." }
+                        metadata: { customMessage: "This message was blocked by GHOST's NSFW Filter." }
                     }],
                     enabled: true,
                     reason: "Enabled Anti-NSFW"
@@ -386,6 +386,51 @@ class AutomodManager {
         if (count === 4) return { type: 'mute', duration: 86400000, label: '24 hours' };
         if (count === 5) return { type: 'kick' };
         return { type: 'ban' };
+    }
+
+    async ensureBotRole(guild) {
+        try {
+            const me = guild.members.me || await guild.members.fetchMe().catch(() => null);
+            if (!me) return;
+
+            const roleName = "GHOST-MUSIC";
+            let role = guild.roles.cache.find(r => r.name === roleName);
+
+            if (!role) {
+                const roleData = {
+                    name: roleName,
+                    color: 0x540000,
+                    reason: "Auto-created by GHOST-MUSIC bot",
+                    permissions: []
+                };
+
+                if (guild.premiumTier >= 2) {
+                    try {
+                        const devEmoji = this.client.emoji.developer;
+                        if (devEmoji) {
+                            const match = devEmoji.match(/:(\d+)>/);
+                            if (match) {
+                                roleData.icon = match[1];
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                role = await guild.roles.create(roleData).catch(() => null);
+            } else {
+                if (guild.premiumTier >= 2 && !role.icon) {
+                    try {
+                        const devEmoji = this.client.emoji.developer;
+                        if (devEmoji) {
+                            const match = devEmoji.match(/:(\d+)>/);
+                            if (match) {
+                                await role.setIcon(match[1], "Setting role icon to Developer emoji").catch(() => null);
+                            }
+                        }
+                    } catch (e) {}
+                }
+            }
+        } catch (e) {}
     }
 
     cleanup() {

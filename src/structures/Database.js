@@ -225,6 +225,111 @@ const tables = [
     }
 ];
 
+const ticketTables = [
+  {
+    name: 'ticket_guilds',
+    schema: `
+      guildId TEXT PRIMARY KEY,
+      staffRoles TEXT DEFAULT '[]',
+      blacklistedUsers TEXT DEFAULT '[]'
+    `
+  },
+  {
+    name: 'ticket_panels',
+    schema: `
+      panelId TEXT PRIMARY KEY,
+      guildId TEXT NOT NULL,
+      name TEXT DEFAULT 'Ticket Panel',
+      channelId TEXT,
+      messageId TEXT,
+      panelMessage TEXT DEFAULT '{}',
+      selectMenuConfig TEXT DEFAULT '{}',
+      categories TEXT DEFAULT '[]',
+      logs TEXT DEFAULT '{}',
+      isActive INTEGER DEFAULT 1,
+      createdAt TEXT
+    `
+  },
+  {
+    name: 'ticket_tickets',
+    schema: `
+      ticketId TEXT PRIMARY KEY,
+      guildId TEXT NOT NULL,
+      panelId TEXT,
+      categoryId TEXT,
+      channelId TEXT,
+      userId TEXT NOT NULL,
+      status TEXT DEFAULT 'open',
+      addedUsers TEXT DEFAULT '[]',
+      removedUsers TEXT DEFAULT '[]',
+      controlMessageId TEXT,
+      closedBy TEXT,
+      closedAt TEXT,
+      closeReason TEXT,
+      rating TEXT DEFAULT '{}',
+      createdAt TEXT
+    `
+  }
+];
+
+const newTables = [
+  {
+    name: 'no_prefix_access',
+    schema: `
+      guild_id     TEXT PRIMARY KEY,
+      granted_by   TEXT,
+      method       TEXT,
+      expires_at   INTEGER,
+      active       INTEGER DEFAULT 1
+    `
+  },
+  {
+    name: 'invite_tracking',
+    schema: `
+      user_id      TEXT PRIMARY KEY,
+      invite_code  TEXT,
+      join_count   INTEGER DEFAULT 0,
+      created_at   INTEGER
+    `
+  },
+  {
+    name: 'bot_verification',
+    schema: `
+      user_id      TEXT PRIMARY KEY,
+      server1_id   TEXT,
+      server2_id   TEXT,
+      verified     INTEGER DEFAULT 0
+    `
+  },
+  {
+    name: 'developers',
+    schema: `
+      user_id      TEXT PRIMARY KEY,
+      added_by     TEXT,
+      added_at     INTEGER
+    `
+  }
+];
+
+const setupTables = [
+  {
+    name: 'noprefix_setup',
+    schema: `
+      guildId TEXT PRIMARY KEY,
+      channelId TEXT,
+      messageId TEXT
+    `
+  }
+];
+
+newTables.forEach(table => {
+  db.prepare(`CREATE TABLE IF NOT EXISTS ${table.name} (${table.schema})`).run();
+});
+
+setupTables.forEach(table => {
+  db.prepare(`CREATE TABLE IF NOT EXISTS ${table.name} (${table.schema})`).run();
+});
+
 tables.forEach(table => {
     db.prepare(`CREATE TABLE IF NOT EXISTS ${table.name} (${table.schema})`).run();
 
@@ -263,6 +368,147 @@ tables.forEach(table => {
     }
 });
 
+
+ticketTables.forEach(table => {
+  db.prepare(`CREATE TABLE IF NOT EXISTS ${table.name} (${table.schema})`).run();
+});
+
+const levelingTables = [
+  {
+    name: 'user_xp',
+    schema: `
+      guild_id TEXT,
+      user_id TEXT,
+      xp INTEGER DEFAULT 0,
+      xp_user INTEGER DEFAULT 0,
+      last_message_ts INTEGER DEFAULT 0,
+      PRIMARY KEY (guild_id, user_id)
+    `
+  },
+  {
+    name: 'level_roles',
+    schema: `
+      guild_id TEXT,
+      level INTEGER,
+      role_id TEXT,
+      PRIMARY KEY (guild_id, level)
+    `
+  },
+  {
+    name: 'xp_multipliers',
+    schema: `
+      guild_id TEXT,
+      target_id TEXT,
+      type TEXT CHECK(type IN ('channel', 'role', 'global')),
+      multiplier REAL,
+      PRIMARY KEY (guild_id, target_id, type)
+    `
+  },
+  {
+    name: 'no_xp_channels',
+    schema: `
+      guild_id TEXT,
+      channel_id TEXT,
+      PRIMARY KEY (guild_id, channel_id)
+    `
+  },
+  {
+    name: 'config',
+    schema: `
+      guild_id TEXT PRIMARY KEY,
+      leveling_enabled INTEGER DEFAULT 1,
+      xp_cooldown_seconds INTEGER DEFAULT 60,
+      global_multiplier REAL DEFAULT 1.0,
+      rankup_mode TEXT DEFAULT 'channel',
+      rankup_channel TEXT,
+      role_mode TEXT DEFAULT 'highest',
+      levelup_message TEXT
+    `
+  },
+  {
+    name: 'xp_settings',
+    schema: `
+      guild_id TEXT PRIMARY KEY,
+      leveling_enabled INTEGER DEFAULT 1
+    `
+  },
+  {
+    name: 'claimed_xp',
+    schema: `
+      guild_id TEXT,
+      user_id TEXT,
+      claimed INTEGER DEFAULT 1,
+      PRIMARY KEY (guild_id, user_id)
+    `
+  },
+  {
+    name: 'leaderboard_data',
+    schema: `
+      guild_id TEXT NOT NULL,
+      username TEXT NOT NULL,
+      level INTEGER NOT NULL,
+      xp INTEGER NOT NULL
+    `
+  },
+  {
+    name: 'global_settings',
+    schema: `
+      key TEXT PRIMARY KEY,
+      value TEXT
+    `
+  }
+];
+
+levelingTables.forEach(table => {
+  db.prepare(`CREATE TABLE IF NOT EXISTS ${table.name} (${table.schema})`).run();
+});
+
+const lvlCols = db.prepare('PRAGMA table_info(user_xp)').all();
+const lvlColNames = lvlCols.map(c => c.name);
+if (!lvlColNames.includes('xp_user')) {
+  db.prepare('ALTER TABLE user_xp ADD COLUMN xp_user INTEGER DEFAULT 0').run();
+}
+if (!lvlColNames.includes('last_message_ts')) {
+  db.prepare('ALTER TABLE user_xp ADD COLUMN last_message_ts INTEGER DEFAULT 0').run();
+}
+
+const xpsCols = db.prepare('PRAGMA table_info(xp_settings)').all();
+const xpsColNames = xpsCols.map(c => c.name);
+if (!xpsColNames.includes('role_mode')) {
+  db.prepare("ALTER TABLE xp_settings ADD COLUMN role_mode TEXT DEFAULT 'highest'").run();
+}
+
+const cfgCols = db.prepare('PRAGMA table_info(config)').all();
+const cfgColNames = cfgCols.map(c => c.name);
+if (!cfgColNames.includes('levelup_message')) {
+  db.prepare('ALTER TABLE config ADD COLUMN levelup_message TEXT').run();
+}
+
+const ticketIndexes = [
+  'CREATE INDEX IF NOT EXISTS idx_ticket_panels_guildId ON ticket_panels(guildId)',
+  'CREATE INDEX IF NOT EXISTS idx_ticket_tickets_guildId ON ticket_tickets(guildId)',
+  'CREATE INDEX IF NOT EXISTS idx_ticket_tickets_userId ON ticket_tickets(userId)',
+  'CREATE INDEX IF NOT EXISTS idx_ticket_tickets_channelId ON ticket_tickets(channelId)',
+  'CREATE INDEX IF NOT EXISTS idx_ticket_tickets_status ON ticket_tickets(status)'
+];
+
+ticketIndexes.forEach(index => {
+  db.prepare(index).run();
+});
+
+const levelingIndexes = [
+  'CREATE INDEX IF NOT EXISTS idx_user_xp_guild_id ON user_xp(guild_id)',
+  'CREATE INDEX IF NOT EXISTS idx_user_xp_guild_id_xp ON user_xp(guild_id, xp DESC)',
+  'CREATE INDEX IF NOT EXISTS idx_level_roles_guild_id ON level_roles(guild_id)',
+  'CREATE INDEX IF NOT EXISTS idx_xp_multipliers_guild_id ON xp_multipliers(guild_id)',
+  'CREATE INDEX IF NOT EXISTS idx_no_xp_channels_guild_id ON no_xp_channels(guild_id)',
+  'CREATE INDEX IF NOT EXISTS idx_claimed_xp_guild_id ON claimed_xp(guild_id)',
+  'CREATE INDEX IF NOT EXISTS idx_leaderboard_data_guild_id ON leaderboard_data(guild_id)'
+];
+
+levelingIndexes.forEach(index => {
+  db.prepare(index).run();
+});
 
 const indexes = [
     'CREATE INDEX IF NOT EXISTS idx_profiles_userId ON profiles(userId)',
@@ -331,17 +577,19 @@ const createManager = (tableName, primaryKey = 'id') => {
     };
 };
 
+const deserializeProfile = (row) => ({
+    ...row,
+    badges: deserialize(row.badges),
+    friends: deserialize(row.friends),
+    deniedCommands: deserialize(row.deniedCommands),
+    allowedCommands: deserialize(row.allowedCommands)
+});
+
 managers.profiles = {
     get: (userId) => {
         const row = db.prepare('SELECT * FROM profiles WHERE userId = ?').get(userId);
         if (!row) return null;
-        return {
-            ...row,
-            badges: deserialize(row.badges),
-            friends: deserialize(row.friends),
-            deniedCommands: deserialize(row.deniedCommands),
-            allowedCommands: deserialize(row.allowedCommands)
-        };
+        return deserializeProfile(row);
     },
     set: (userId, data) => {
         const updates = [];
@@ -367,6 +615,34 @@ managers.profiles = {
             });
             db.prepare(`INSERT INTO profiles (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`).run(...vals);
         }
+    },
+    find: (filter = {}) => {
+        let sql = 'SELECT * FROM profiles';
+        const params = [];
+        const conditions = [];
+        for (const key in filter) {
+            conditions.push(`${key} = ?`);
+            params.push(filter[key]);
+        }
+        if (conditions.length > 0) sql += ' WHERE ' + conditions.join(' AND ');
+        return db.prepare(sql).all(...params).map(deserializeProfile);
+    },
+    deleteMany: (query) => {
+        if (typeof query === 'string') {
+            return db.prepare(query).run();
+        }
+        let sql = 'DELETE FROM profiles';
+        const params = [];
+        const conditions = [];
+        for (const key in query || {}) {
+            conditions.push(`${key} = ?`);
+            params.push(query[key]);
+        }
+        if (conditions.length > 0) {
+            sql += ' WHERE ' + conditions.join(' AND ');
+            return db.prepare(sql).run(...params);
+        }
+        return db.prepare(sql).run();
     }
 };
 
@@ -829,6 +1105,456 @@ managers.automod = {
             db.prepare(`INSERT INTO automod (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`).run(...vals);
         }
     }
+};
+
+const ticketHelpers = {
+  serialize: (data) => JSON.stringify(data),
+  deserialize: (data, fallback = null) => {
+    try {
+      if (!data) return fallback;
+      return typeof data === 'string' ? JSON.parse(data) : data;
+    } catch (e) {
+      return fallback;
+    }
+  },
+  generateId: () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9)
+};
+
+managers.ticketGuilds = {
+  get: (guildId) => db.prepare('SELECT * FROM ticket_guilds WHERE guildId = ?').get(guildId),
+  ensure: (guildId) => {
+    let row = db.prepare('SELECT * FROM ticket_guilds WHERE guildId = ?').get(guildId);
+    if (!row) {
+      db.prepare('INSERT INTO ticket_guilds (guildId) VALUES (?)').run(guildId);
+      row = { guildId, staffRoles: '[]', blacklistedUsers: '[]' };
+    }
+    return row;
+  },
+  getStaffRoles: (guildId) => {
+    const row = db.prepare('SELECT staffRoles FROM ticket_guilds WHERE guildId = ?').get(guildId);
+    return row ? ticketHelpers.deserialize(row.staffRoles, []) : [];
+  },
+  setStaffRoles: (guildId, roles) => {
+    managers.ticketGuilds.ensure(guildId);
+    db.prepare('UPDATE ticket_guilds SET staffRoles = ? WHERE guildId = ?').run(ticketHelpers.serialize(roles), guildId);
+  },
+  getBlacklistedUsers: (guildId) => {
+    const row = db.prepare('SELECT blacklistedUsers FROM ticket_guilds WHERE guildId = ?').get(guildId);
+    return row ? ticketHelpers.deserialize(row.blacklistedUsers, []) : [];
+  },
+  isUserBlacklisted: (guildId, userId) => {
+    const users = managers.ticketGuilds.getBlacklistedUsers(guildId);
+    return users.some(u => u.userId === userId);
+  },
+  addBlacklistedUser: (guildId, userId, reason, by) => {
+    managers.ticketGuilds.ensure(guildId);
+    const users = managers.ticketGuilds.getBlacklistedUsers(guildId);
+    if (!users.some(u => u.userId === userId)) {
+      users.push({ userId, reason: reason || null, blacklistedBy: by, blacklistedAt: new Date().toISOString() });
+      db.prepare('UPDATE ticket_guilds SET blacklistedUsers = ? WHERE guildId = ?').run(ticketHelpers.serialize(users), guildId);
+    }
+  },
+  removeBlacklistedUser: (guildId, userId) => {
+    const users = managers.ticketGuilds.getBlacklistedUsers(guildId);
+    const filtered = users.filter(u => u.userId !== userId);
+    db.prepare('UPDATE ticket_guilds SET blacklistedUsers = ? WHERE guildId = ?').run(ticketHelpers.serialize(filtered), guildId);
+  },
+  delete: (guildId) => {
+    db.prepare('DELETE FROM ticket_guilds WHERE guildId = ?').run(guildId);
+  }
+};
+
+managers.ticketPanels = {
+  get: (panelId) => {
+    const row = db.prepare('SELECT * FROM ticket_panels WHERE panelId = ?').get(panelId);
+    if (!row) return null;
+    return {
+      ...row,
+      panelMessage: ticketHelpers.deserialize(row.panelMessage, {}),
+      selectMenuConfig: ticketHelpers.deserialize(row.selectMenuConfig, {}),
+      categories: ticketHelpers.deserialize(row.categories, []),
+      logs: ticketHelpers.deserialize(row.logs, {}),
+      isActive: !!row.isActive
+    };
+  },
+  getGuildPanels: (guildId) => {
+    const rows = db.prepare('SELECT * FROM ticket_panels WHERE guildId = ?').all(guildId);
+    return rows.map(row => ({
+      ...row,
+      panelMessage: ticketHelpers.deserialize(row.panelMessage, {}),
+      selectMenuConfig: ticketHelpers.deserialize(row.selectMenuConfig, {}),
+      categories: ticketHelpers.deserialize(row.categories, []),
+      logs: ticketHelpers.deserialize(row.logs, {}),
+      isActive: !!row.isActive
+    }));
+  },
+  create: (guildId, data = {}) => {
+    const panelId = ticketHelpers.generateId();
+    db.prepare('INSERT INTO ticket_panels (panelId, guildId, name, createdAt) VALUES (?, ?, ?, ?)').run(
+      panelId, guildId, data.name || 'Ticket Panel', new Date().toISOString()
+    );
+    return managers.ticketPanels.get(panelId);
+  },
+  update: (panelId, data) => {
+    const fields = [];
+    const params = [];
+    for (const [key, val] of Object.entries(data)) {
+      if (key === 'panelId') continue;
+      if (['panelMessage', 'selectMenuConfig', 'categories', 'logs'].includes(key)) {
+        fields.push(`${key} = ?`);
+        params.push(ticketHelpers.serialize(val));
+      } else if (key === 'isActive') {
+        fields.push(`${key} = ?`);
+        params.push(val ? 1 : 0);
+      } else {
+        fields.push(`${key} = ?`);
+        params.push(val);
+      }
+    }
+    if (fields.length > 0) {
+      params.push(panelId);
+      db.prepare(`UPDATE ticket_panels SET ${fields.join(', ')} WHERE panelId = ?`).run(...params);
+    }
+    return managers.ticketPanels.get(panelId);
+  },
+  delete: (panelId) => {
+    db.prepare('DELETE FROM ticket_panels WHERE panelId = ?').run(panelId);
+  },
+  deleteByGuild: (guildId) => {
+    db.prepare('DELETE FROM ticket_panels WHERE guildId = ?').run(guildId);
+  },
+  setPanelName: (panelId, name) => managers.ticketPanels.update(panelId, { name }),
+  setPanelMessage: (panelId, msg) => managers.ticketPanels.update(panelId, { panelMessage: msg }),
+  setPanelSelectMenu: (panelId, config) => {
+    const panel = managers.ticketPanels.get(panelId);
+    if (!panel) return;
+    managers.ticketPanels.update(panelId, { selectMenuConfig: { ...panel.selectMenuConfig, ...config } });
+  },
+  setPanelMessageId: (panelId, channelId, messageId) => managers.ticketPanels.update(panelId, { channelId, messageId }),
+  setPanelLogs: (panelId, logs) => managers.ticketPanels.update(panelId, { logs }),
+  togglePanelActive: (panelId) => {
+    const panel = managers.ticketPanels.get(panelId);
+    if (panel) managers.ticketPanels.update(panelId, { isActive: !panel.isActive });
+  },
+  addCategory: (panelId, catData) => {
+    const panel = managers.ticketPanels.get(panelId);
+    if (!panel) return null;
+    const cat = {
+      categoryId: ticketHelpers.generateId(),
+      name: catData.name || 'New Category',
+      description: catData.description || null,
+      emoji: catData.emoji || null,
+      supportRoles: catData.supportRoles || [],
+      ticketChannelCategory: catData.ticketChannelCategory || null,
+      namingFormat: catData.namingFormat || 'ticket-{username}-{number}',
+      settings: catData.settings || { pingUser: true, pingRole: false, userCanClose: false, dmUserOnOpen: false, dmUserOnClose: false, maxTicketsPerUser: 1, welcomeMessage: null },
+      isActive: true
+    };
+    const cats = [...panel.categories, cat];
+    db.prepare('UPDATE ticket_panels SET categories = ? WHERE panelId = ?').run(ticketHelpers.serialize(cats), panelId);
+    return cat;
+  },
+  updateCategory: (panelId, categoryId, data) => {
+    const panel = managers.ticketPanels.get(panelId);
+    if (!panel) return;
+    const cats = panel.categories.map(c => c.categoryId === categoryId ? { ...c, ...data } : c);
+    db.prepare('UPDATE ticket_panels SET categories = ? WHERE panelId = ?').run(ticketHelpers.serialize(cats), panelId);
+  },
+  updateCategorySettings: (panelId, categoryId, settings) => {
+    const panel = managers.ticketPanels.get(panelId);
+    if (!panel) return;
+    const cats = panel.categories.map(c =>
+      c.categoryId === categoryId ? { ...c, settings: { ...c.settings, ...settings } } : c
+    );
+    db.prepare('UPDATE ticket_panels SET categories = ? WHERE panelId = ?').run(ticketHelpers.serialize(cats), panelId);
+  },
+  removeCategory: (panelId, categoryId) => {
+    const panel = managers.ticketPanels.get(panelId);
+    if (!panel) return;
+    const cats = panel.categories.filter(c => c.categoryId !== categoryId);
+    db.prepare('UPDATE ticket_panels SET categories = ? WHERE panelId = ?').run(ticketHelpers.serialize(cats), panelId);
+  },
+  toggleCategoryActive: (panelId, categoryId) => {
+    const panel = managers.ticketPanels.get(panelId);
+    if (!panel) return;
+    const cats = panel.categories.map(c =>
+      c.categoryId === categoryId ? { ...c, isActive: !c.isActive } : c
+    );
+    db.prepare('UPDATE ticket_panels SET categories = ? WHERE panelId = ?').run(ticketHelpers.serialize(cats), panelId);
+  }
+};
+
+managers.ticketTickets = {
+  get: (ticketId) => {
+    const row = db.prepare('SELECT * FROM ticket_tickets WHERE ticketId = ?').get(ticketId);
+    if (!row) return null;
+    return {
+      ...row,
+      addedUsers: ticketHelpers.deserialize(row.addedUsers, []),
+      removedUsers: ticketHelpers.deserialize(row.removedUsers, []),
+      rating: ticketHelpers.deserialize(row.rating, {})
+    };
+  },
+  getByChannel: (channelId) => {
+    const row = db.prepare('SELECT * FROM ticket_tickets WHERE channelId = ?').get(channelId);
+    if (!row) return null;
+    return {
+      ...row,
+      addedUsers: ticketHelpers.deserialize(row.addedUsers, []),
+      removedUsers: ticketHelpers.deserialize(row.removedUsers, []),
+      rating: ticketHelpers.deserialize(row.rating, {})
+    };
+  },
+  getByGuild: (guildId) => {
+    const rows = db.prepare('SELECT * FROM ticket_tickets WHERE guildId = ?').all(guildId);
+    return rows.map(row => ({
+      ...row,
+      addedUsers: ticketHelpers.deserialize(row.addedUsers, []),
+      removedUsers: ticketHelpers.deserialize(row.removedUsers, []),
+      rating: ticketHelpers.deserialize(row.rating, {})
+    }));
+  },
+  getByUser: (guildId, userId) => {
+    const rows = db.prepare('SELECT * FROM ticket_tickets WHERE guildId = ? AND userId = ?').all(guildId, userId);
+    return rows.map(row => ({
+      ...row,
+      addedUsers: ticketHelpers.deserialize(row.addedUsers, []),
+      removedUsers: ticketHelpers.deserialize(row.removedUsers, []),
+      rating: ticketHelpers.deserialize(row.rating, {})
+    }));
+  },
+  getUserOpenTickets: (guildId, userId, categoryId) => {
+    const rows = db.prepare('SELECT * FROM ticket_tickets WHERE guildId = ? AND userId = ? AND categoryId = ? AND status = ?').all(guildId, userId, categoryId, 'open');
+    return rows.map(row => ({
+      ...row,
+      addedUsers: ticketHelpers.deserialize(row.addedUsers, []),
+      removedUsers: ticketHelpers.deserialize(row.removedUsers, []),
+      rating: ticketHelpers.deserialize(row.rating, {})
+    }));
+  },
+  create: (guildId, panelId, categoryId, userId) => {
+    const ticketId = ticketHelpers.generateId();
+    db.prepare('INSERT INTO ticket_tickets (ticketId, guildId, panelId, categoryId, userId, createdAt) VALUES (?, ?, ?, ?, ?, ?)').run(
+      ticketId, guildId, panelId, categoryId, userId, new Date().toISOString()
+    );
+    return managers.ticketTickets.get(ticketId);
+  },
+  update: (ticketId, data) => {
+    const fields = [];
+    const params = [];
+    for (const [key, val] of Object.entries(data)) {
+      if (key === 'ticketId') continue;
+      if (['addedUsers', 'removedUsers', 'rating'].includes(key)) {
+        fields.push(`${key} = ?`);
+        params.push(ticketHelpers.serialize(val));
+      } else {
+        fields.push(`${key} = ?`);
+        params.push(val);
+      }
+    }
+    if (fields.length > 0) {
+      params.push(ticketId);
+      db.prepare(`UPDATE ticket_tickets SET ${fields.join(', ')} WHERE ticketId = ?`).run(...params);
+    }
+    return managers.ticketTickets.get(ticketId);
+  },
+  setChannel: (ticketId, channelId) => managers.ticketTickets.update(ticketId, { channelId }),
+  setControlMessage: (ticketId, msgId) => managers.ticketTickets.update(ticketId, { controlMessageId: msgId }),
+  close: (ticketId, closedBy, reason) => managers.ticketTickets.update(ticketId, { status: 'closed', closedBy, closedAt: new Date().toISOString(), closeReason: reason || null }),
+  reopen: (ticketId) => managers.ticketTickets.update(ticketId, { status: 'open', closedBy: null, closedAt: null, closeReason: null }),
+  addUser: (ticketId, userId, addedBy) => {
+    const ticket = managers.ticketTickets.get(ticketId);
+    if (!ticket) return;
+    const users = ticket.addedUsers.filter(u => u.userId !== userId);
+    users.push({ userId, addedBy, addedAt: new Date().toISOString() });
+    managers.ticketTickets.update(ticketId, { addedUsers: users });
+  },
+  removeUser: (ticketId, userId, removedBy) => {
+    const ticket = managers.ticketTickets.get(ticketId);
+    if (!ticket) return;
+    const added = ticket.addedUsers.filter(u => u.userId !== userId);
+    const removed = [...(ticket.removedUsers || []), { userId, removedBy, removedAt: new Date().toISOString() }];
+    managers.ticketTickets.update(ticketId, { addedUsers: added, removedUsers: removed });
+  },
+  isUserAdded: (ticketId, userId) => {
+    const ticket = managers.ticketTickets.get(ticketId);
+    return ticket ? ticket.addedUsers.some(u => u.userId === userId) : false;
+  },
+  getAddedUsers: (ticketId) => {
+    const ticket = managers.ticketTickets.get(ticketId);
+    return ticket ? ticket.addedUsers : [];
+  },
+  rate: (ticketId, stars, feedback) => {
+    managers.ticketTickets.update(ticketId, { rating: { stars, feedback, ratedAt: new Date().toISOString() } });
+  },
+  delete: (ticketId) => {
+    db.prepare('DELETE FROM ticket_tickets WHERE ticketId = ?').run(ticketId);
+  },
+  deleteByGuild: (guildId) => {
+    db.prepare('DELETE FROM ticket_tickets WHERE guildId = ?').run(guildId);
+  }
+};
+
+managers.leveling = {
+  // Ported from Python: database.py XP functions
+
+  updateXp(guildId, userId, xp, ts) {
+    const existing = getStatement('SELECT 1 FROM user_xp WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
+    if (existing) {
+      getStatement('UPDATE user_xp SET xp = xp + ?, last_message_ts = ? WHERE guild_id = ? AND user_id = ?').run(xp, ts, guildId, userId);
+    } else {
+      getStatement('INSERT INTO user_xp (guild_id, user_id, xp, last_message_ts) VALUES (?, ?, ?, ?)').run(guildId, userId, xp, ts);
+    }
+  },
+
+  getXp(guildId, userId) {
+    return getStatement('SELECT xp, xp_user, last_message_ts FROM user_xp WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
+  },
+
+  setUserCustomXp(guildId, userId, xpAmount) {
+    const existing = this.getXp(guildId, userId);
+    if (existing) {
+      getStatement('UPDATE user_xp SET xp = xp + ?, xp_user = xp_user + ? WHERE guild_id = ? AND user_id = ?').run(xpAmount, xpAmount, guildId, userId);
+    } else {
+      getStatement('INSERT INTO user_xp (guild_id, user_id, xp, xp_user) VALUES (?, ?, ?, ?)').run(guildId, userId, xpAmount, xpAmount);
+    }
+  },
+
+  removeUserCustomXp(guildId, userId, xpAmount) {
+    const existing = this.getXp(guildId, userId);
+    if (existing) {
+      const newXp = Math.max(0, existing.xp - xpAmount);
+      const newXpUser = Math.max(0, existing.xp_user - xpAmount);
+      getStatement('UPDATE user_xp SET xp = ?, xp_user = ? WHERE guild_id = ? AND user_id = ?').run(newXp, newXpUser, guildId, userId);
+    }
+  },
+
+  getLeaderboard(guildId, limit = 10) {
+    return getStatement('SELECT user_id, xp FROM user_xp WHERE guild_id = ? ORDER BY xp DESC LIMIT ?').all(guildId, limit);
+  },
+
+  getAllUserXp(guildId) {
+    return getStatement('SELECT user_id, xp FROM user_xp WHERE guild_id = ? ORDER BY xp DESC').all(guildId);
+  },
+
+  getUserRank(guildId, userId) {
+    const rows = getStatement('SELECT user_id FROM user_xp WHERE guild_id = ? ORDER BY xp DESC').all(guildId);
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].user_id === userId) return i + 1;
+    }
+    return null;
+  },
+
+  resetUser(guildId, userId) {
+    getStatement('DELETE FROM user_xp WHERE guild_id = ? AND user_id = ?').run(guildId, userId);
+  },
+
+  resetAllUsers(guildId) {
+    getStatement('DELETE FROM user_xp WHERE guild_id = ?').run(guildId);
+  },
+
+  getConfig(guildId) {
+    return getStatement('SELECT * FROM config WHERE guild_id = ?').get(guildId);
+  },
+
+  setConfig(guildId, data) {
+    const existing = getStatement('SELECT 1 FROM config WHERE guild_id = ?').get(guildId);
+    if (existing) {
+      const updates = [];
+      const params = [];
+      for (const [key, val] of Object.entries(data)) {
+        if (key === 'guild_id') continue;
+        updates.push(`${key} = ?`);
+        params.push(val);
+      }
+      params.push(guildId);
+      getStatement(`UPDATE config SET ${updates.join(', ')} WHERE guild_id = ?`).run(...params);
+    } else {
+      const keys = ['guild_id', ...Object.keys(data)];
+      const vals = [guildId, ...Object.values(data)];
+      getStatement(`INSERT INTO config (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`).run(...vals);
+    }
+  },
+
+  getXpSettings(guildId) {
+    return getStatement('SELECT * FROM xp_settings WHERE guild_id = ?').get(guildId);
+  },
+
+  setXpSettings(guildId, data) {
+    const existing = getStatement('SELECT 1 FROM xp_settings WHERE guild_id = ?').get(guildId);
+    if (existing) {
+      const updates = [];
+      const params = [];
+      for (const [key, val] of Object.entries(data)) {
+        if (key === 'guild_id') continue;
+        updates.push(`${key} = ?`);
+        params.push(val);
+      }
+      params.push(guildId);
+      getStatement(`UPDATE xp_settings SET ${updates.join(', ')} WHERE guild_id = ?`).run(...params);
+    } else {
+      const keys = ['guild_id', ...Object.keys(data)];
+      const vals = [guildId, ...Object.values(data)];
+      getStatement(`INSERT INTO xp_settings (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`).run(...vals);
+    }
+  },
+
+  getLevelRoles(guildId) {
+    return getStatement('SELECT level, role_id FROM level_roles WHERE guild_id = ? ORDER BY level ASC').all(guildId);
+  },
+
+  setLevelRole(guildId, level, roleId) {
+    getStatement('INSERT INTO level_roles (guild_id, level, role_id) VALUES (?, ?, ?) ON CONFLICT(guild_id, level) DO UPDATE SET role_id = excluded.role_id').run(guildId, level, roleId);
+  },
+
+  removeLevelRole(guildId, level) {
+    getStatement('DELETE FROM level_roles WHERE guild_id = ? AND level = ?').run(guildId, level);
+  },
+
+  getMultipliers(guildId) {
+    return getStatement('SELECT * FROM xp_multipliers WHERE guild_id = ?').all(guildId);
+  },
+
+  getMultiplier(guildId, targetId, type) {
+    return getStatement('SELECT multiplier FROM xp_multipliers WHERE guild_id = ? AND target_id = ? AND type = ?').get(guildId, targetId, type);
+  },
+
+  setMultiplier(guildId, targetId, type, multiplier) {
+    getStatement('INSERT INTO xp_multipliers (guild_id, target_id, type, multiplier) VALUES (?, ?, ?, ?) ON CONFLICT(guild_id, target_id, type) DO UPDATE SET multiplier = excluded.multiplier').run(guildId, targetId, type, multiplier);
+  },
+
+  removeMultiplier(guildId, targetId, type) {
+    getStatement('DELETE FROM xp_multipliers WHERE guild_id = ? AND target_id = ? AND type = ?').run(guildId, targetId, type);
+  },
+
+  getNoXpChannels(guildId) {
+    return getStatement('SELECT channel_id FROM no_xp_channels WHERE guild_id = ?').all(guildId);
+  },
+
+  addNoXpChannel(guildId, channelId) {
+    getStatement('INSERT OR IGNORE INTO no_xp_channels (guild_id, channel_id) VALUES (?, ?)').run(guildId, channelId);
+  },
+
+  removeNoXpChannel(guildId, channelId) {
+    getStatement('DELETE FROM no_xp_channels WHERE guild_id = ? AND channel_id = ?').run(guildId, channelId);
+  },
+
+  getGlobalSetting(key, defaultVal = null) {
+    const row = getStatement('SELECT value FROM global_settings WHERE key = ?').get(key);
+    return row ? row.value : defaultVal;
+  },
+
+  setGlobalSetting(key, value) {
+    getStatement('INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, String(value));
+  },
+
+  isClaimed(guildId, userId) {
+    return !!getStatement('SELECT 1 FROM claimed_xp WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
+  },
+
+  setClaimed(guildId, userId) {
+    getStatement('INSERT OR IGNORE INTO claimed_xp (guild_id, user_id) VALUES (?, ?)').run(guildId, userId);
+  }
 };
 
 const Database = { db, ...managers };

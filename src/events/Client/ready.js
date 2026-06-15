@@ -1,10 +1,25 @@
-const { prefix } = require("../../config.js");
+const { prefix, SUPPORT_SERVER_ID } = require("../../config.js");
 const { ActivityType, REST, Routes, PermissionFlagsBits } = require("discord.js");
 
 module.exports = {
-  name: "clientReady",
+  name: "ready",
   run: async (client) => {
     client.logger.log(`${client.user.username} is now online.`, "ready");
+
+    client.supportInviteCache = new Map();
+    const supportGuild = client.guilds.cache.get(SUPPORT_SERVER_ID);
+    if (supportGuild) {
+      try {
+        const invites = await supportGuild.invites.fetch();
+        client.supportInviteCache.set(
+          supportGuild.id,
+          new Map(invites.map(inv => [inv.code, inv.uses]))
+        );
+        console.log(`[InviteTracker] Cached ${invites.size} invites for support server`);
+      } catch (err) {
+        console.error('[InviteTracker] Could not cache invites:', err.message);
+      }
+    }
 
     const giveawayManager = require("../../utils/giveawayManager");
     giveawayManager.init(client);
@@ -55,10 +70,19 @@ module.exports = {
       }
     }
 
+    for (const guild of client.guilds.cache.values()) {
+      client.automod.ensureBotRole(guild).catch(() => {});
+    }
+
     client.logger.log(
       `Ready on ${client.guilds.cache.size} servers, for a total of ${client.users.cache.size} users`,
       "ready",
     );
+
+    console.log(`[DEBUG-GUILDS] Bot User: ${client.user.tag} (${client.user.id})`);
+    client.guilds.cache.forEach(guild => {
+      console.log(`[DEBUG-GUILDS] - Guild: ${guild.name} (${guild.id})`);
+    });
 
     for (const guild of client.guilds.cache.values()) {
       giveawayManager.syncGiveaways(client, guild).catch(() => { });
@@ -68,11 +92,17 @@ module.exports = {
       const rest = new REST({ version: "10" }).setToken(client.token);
       try {
         const commands = Array.from(client.slashCommands.values()).map((cmd) => {
+          const isContextMenu = cmd.type && cmd.type !== 1;
           const commandData = {
             name: cmd.name,
-            description: cmd.description,
-            options: cmd.options || [],
           };
+
+          if (cmd.type) commandData.type = cmd.type;
+
+          if (!isContextMenu) {
+            commandData.description = cmd.description || "No description provided";
+            commandData.options = cmd.options || [];
+          }
 
           if (cmd.owner) {
             commandData.default_member_permissions = "8";

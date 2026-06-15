@@ -1,17 +1,32 @@
 const {
     AttachmentBuilder,
-    ContainerBuilder,
-    TextDisplayBuilder,
-    MediaGalleryBuilder,
-    MediaGalleryItemBuilder,
+    EmbedBuilder,
     MessageFlags
 } = require('discord.js');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const moment = require('moment');
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
 const emoji = require('../../emojis');
+
+async function sendWithRetry(replyFn, options, maxRetries = 2) {
+    let lastErr;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await replyFn(options);
+        } catch (err) {
+            lastErr = err;
+            const code = err?.code || err?.name || '';
+            const msg = err?.message || '';
+            const isSocketError = code === 'UND_ERR_SOCKET' || code === 'UND_ERR_CLOSED' || msg.includes('other side closed');
+            if (isSocketError && attempt < maxRetries) {
+                await new Promise(r => setTimeout(r, 1000 * attempt));
+                continue;
+            }
+            throw err;
+        }
+    }
+    throw lastErr;
+}
 
 module.exports = {
     name: 'profile',
@@ -431,23 +446,23 @@ module.exports = {
         }
         ctx.textAlign = "left";
 
-        const sanitizedName = user.id;
-        const tempPath = path.join(process.cwd(), `profile_${sanitizedName}.png`);
         try {
             const buffer = await canvas.encode('png');
-            fs.writeFileSync(tempPath, buffer);
 
-            const attachment = new AttachmentBuilder(tempPath, { name: 'profile.png' });
-            const container = new ContainerBuilder()
-                .addMediaGalleryComponents(new MediaGalleryBuilder().addItems(
-                    new MediaGalleryItemBuilder().setURL("attachment://profile.png")
-                ));
+            const attachment = new AttachmentBuilder(Buffer.from(buffer), { name: 'profile.png' });
+            const embed = new EmbedBuilder()
+                .setTitle(`${user.username}'s Profile`)
+                .setColor(client.color)
+                .setImage("attachment://profile.png")
+                .setFooter({ text: `ID: ${user.id}` });
 
-            await message.reply({ files: [attachment], components: [container], flags: MessageFlags.IsComponentsV2 });
+            await sendWithRetry(message.reply.bind(message), { embeds: [embed], files: [attachment] });
         } catch (error) {
-            console.error("UI Update Fail:", error);
-        } finally {
-            setTimeout(() => { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); }, 5000);
+            console.error("[Profile] Send failed:", error?.message || error);
+
+            try {
+                await message.reply({ content: `Failed to send profile image. Please try again.`, flags: MessageFlags.Ephemeral });
+            } catch (_) {}
         }
     }
 };

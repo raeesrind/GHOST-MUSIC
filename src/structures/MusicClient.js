@@ -23,6 +23,7 @@ class MusicBot extends Client {
       },
       shards: getInfo().SHARD_LIST,
       shardCount: getInfo().TOTAL_SHARDS,
+      rest: { timeout: 60000 },
     });
 
     this.commands = new Collection();
@@ -67,6 +68,7 @@ class MusicBot extends Client {
     [
       "loadClients",
       "loadCommands",
+      "commandLoader",
       "loadNodes",
       "loadPlayers",
     ].forEach((handler) => {

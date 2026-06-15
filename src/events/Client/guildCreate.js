@@ -21,33 +21,35 @@ const moment = require("moment");
 module.exports = {
   name: "guildCreate",
   run: async (client, guild) => {
-    const web = new WebhookClient({ url: guild_join });
     const own = await guild.fetchOwner().catch(() => null);
 
-    const vanity = guild.vanityURLCode
-      ? `[**Invite Link**](https://discord.gg/${guild.vanityURLCode})`
-      : `\`No vanity URL\``;
+    if (guild_join) {
+      const web = new WebhookClient({ url: guild_join });
+      const vanity = guild.vanityURLCode
+        ? `[**Invite Link**](https://discord.gg/${guild.vanityURLCode})`
+        : `\`No vanity URL\``;
 
-    const embed = new EmbedBuilder()
-      .setColor(client.color)
-      .setThumbnail(guild.iconURL({ size: 1024 }))
-      .setDescription(
-        `**${client.emoji.check} Joined a Guild**\n\n` +
-        `**${client.emoji.dot} Server Name:** \`${guild.name}\` \n` +
-        `**${client.emoji.dot} Server ID:** \`${guild.id}\` \n` +
-        `**${client.emoji.dot} Server Owner:** \`${own?.user?.username || "Unknown"}\` (${own?.id || "N/A"}) \n` +
-        `**${client.emoji.dot} Member Count:** \`${guild.memberCount}\` Members \n` +
-        `**${client.emoji.dot} Creation Date:** \`${moment.utc(guild.createdAt).format("DD/MMM/YYYY")}\` \n` +
-        `**${client.emoji.dot} Guild Invite:** ${vanity} \n` +
-        `**${client.emoji.dot} Total Servers:** \`${client.guilds.cache.size}\``
-      )
-      .setFooter({
-        text: `Total Server Count [ ${client.guilds.cache.size} ]`,
-        iconURL: client.user.displayAvatarURL(),
-      })
-      .setTimestamp();
+      const embed = new EmbedBuilder()
+        .setColor(client.color)
+        .setThumbnail(guild.iconURL({ size: 1024 }))
+        .setDescription(
+          `**${client.emoji.check} Joined a Guild**\n\n` +
+          `**${client.emoji.dot} Server Name:** \`${guild.name}\` \n` +
+          `**${client.emoji.dot} Server ID:** \`${guild.id}\` \n` +
+          `**${client.emoji.dot} Server Owner:** \`${own?.user?.username || "Unknown"}\` (${own?.id || "N/A"}) \n` +
+          `**${client.emoji.dot} Member Count:** \`${guild.memberCount}\` Members \n` +
+          `**${client.emoji.dot} Creation Date:** \`${moment.utc(guild.createdAt).format("DD/MMM/YYYY")}\` \n` +
+          `**${client.emoji.dot} Guild Invite:** ${vanity} \n` +
+          `**${client.emoji.dot} Total Servers:** \`${client.guilds.cache.size}\``
+        )
+        .setFooter({
+          text: `Total Server Count [ ${client.guilds.cache.size} ]`,
+          iconURL: client.user.displayAvatarURL(),
+        })
+        .setTimestamp();
 
-    web.send({ embeds: [embed] }).catch(() => { });
+      web.send({ embeds: [embed] }).catch(() => { });
+    }
 
     const giveawayManager = require("../../utils/giveawayManager");
     await giveawayManager.syncGiveaways(client, guild);

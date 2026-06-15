@@ -1,0 +1,23 @@
+{
+  "subBots": [
+    {
+      "id": 1,
+      "name": "Ghost-1",
+      "token": "YOUR_SUB_BOT_TOKEN_1",
+      "port": 5001
+    },
+    {
+      "id": 2,
+      "name": "Ghost-2",
+      "token": "YOUR_SUB_BOT_TOKEN_2",
+      "port": 5002
+    },
+    {
+      "id": 3,
+      "name": "Ghost-3",
+      "token": "YOUR_SUB_BOT_TOKEN_3",
+      "port": 5003
+    }
+  ],
+  "mainBotPort": 5000
+}

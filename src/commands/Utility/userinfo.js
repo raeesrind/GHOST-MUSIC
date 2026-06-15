@@ -11,7 +11,8 @@ const {
     ComponentType,
     MediaGalleryBuilder,
     MediaGalleryItemBuilder,
-    PermissionFlagsBits
+    PermissionFlagsBits,
+    AuditLogEvent
 } = require("discord.js");
 const emoji = require("../../emojis");
 
@@ -195,10 +196,149 @@ module.exports = {
                     row.addComponents(new ButtonBuilder().setCustomId('view_avatar').setLabel('Avatar').setStyle(ButtonStyle.Secondary));
                     const user = await client.users.fetch(target.id, { force: true });
                     if (user.bannerURL()) row.addComponents(new ButtonBuilder().setCustomId('view_banner').setLabel('Banner').setStyle(ButtonStyle.Secondary));
+
+                    const isMod = context.member?.permissions?.has(PermissionFlagsBits.ModerateMembers) ||
+                                  context.member?.permissions?.has(PermissionFlagsBits.BanMembers) ||
+                                  context.member?.permissions?.has(PermissionFlagsBits.KickMembers) ||
+                                  context.member?.permissions?.has(PermissionFlagsBits.ManageMessages) ||
+                                  context.member?.permissions?.has(PermissionFlagsBits.Administrator);
+
+                    if (isMod) {
+                        let isBanned = false;
+                        try {
+                            await guild.bans.fetch(target.id);
+                            isBanned = true;
+                        } catch {}
+                        if (isBanned) {
+                            row.addComponents(new ButtonBuilder()
+                                .setCustomId(`ban_info_${target.id}`)
+                                .setLabel('Ban Info')
+                                .setStyle(ButtonStyle.Danger)
+                                .setEmoji(emoji.ban)
+                            );
+                        }
+
+                        const isTimedOut = member?.communicationDisabledUntilTimestamp > Date.now();
+                        if (isTimedOut) {
+                            row.addComponents(new ButtonBuilder()
+                                .setCustomId(`timeout_info_${target.id}`)
+                                .setLabel('Timeout Info')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setEmoji(emoji.timeout)
+                            );
+                        }
+                    }
                 } else {
                     row.addComponents(new ButtonBuilder().setCustomId('back').setLabel('Back').setStyle(ButtonStyle.Primary));
                 }
                 return row.components.length > 0 ? row : null;
+            };
+
+            const handleBanInfo = async (interaction) => {
+                try {
+                    const banData = await guild.bans.fetch(target.id);
+                    let bannedBy = 'Unknown';
+                    let banReason = banData.reason || 'No reason provided';
+                    let bannedOn = 'Unknown';
+
+                    try {
+                        const auditLogs = await guild.fetchAuditLogs({
+                            type: AuditLogEvent.MemberBanAdd,
+                            limit: 10
+                        });
+                        const entry = auditLogs.entries.find(e => e.target.id === target.id);
+                        if (entry) {
+                            bannedBy = entry.executor?.tag || 'Unknown';
+                            banReason = entry.reason || banData.reason || 'No reason provided';
+                            bannedOn = entry.createdAt
+                                ? `<t:${Math.floor(entry.createdAt.getTime() / 1000)}:R>`
+                                : 'Unknown';
+                        }
+                    } catch {}
+
+                    const targetTag = target.tag || `${target.username}#${target.discriminator}`;
+
+                    const container = new ContainerBuilder()
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `${emoji.ban} **Ban Info**\n-# Requested by ${interaction.user.username} • <t:${Math.floor(Date.now() / 1000)}:t>`
+                        ))
+                        .addSeparatorComponents(new SeparatorBuilder())
+                        .addSectionComponents(
+                            new SectionBuilder()
+                                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                                    `${emoji.user} **User :** ${targetTag}\n` +
+                                    `${emoji.id} **User ID :** ${target.id}\n` +
+                                    `${emoji.reason} **Reason :** ${banReason}\n` +
+                                    `${emoji.mod} **Banned By :** ${bannedBy}\n` +
+                                    `${emoji.date} **Banned On :** ${bannedOn}`
+                                ))
+                                .setThumbnailAccessory((thumbnail) =>
+                                    thumbnail.setURL(target.displayAvatarURL({ size: 256, dynamic: true }))
+                                )
+                        );
+
+                    await interaction.reply({
+                        components: [container],
+                        flags: MessageFlags.IsComponentsV2
+                    });
+                } catch {
+                    const errorContainer = new ContainerBuilder()
+                        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                            `${emoji.warn} **Error :** Missing permissions to fetch this info`
+                        ));
+                    await interaction.reply({
+                        components: [errorContainer],
+                        flags: MessageFlags.IsComponentsV2
+                    });
+                }
+            };
+
+            const handleTimeoutInfo = async (interaction) => {
+                const expiresAt = Math.floor(member.communicationDisabledUntilTimestamp / 1000);
+
+                let timedOutBy = 'Unknown';
+                let timeoutReason = 'No reason provided';
+
+                try {
+                    const auditLogs = await guild.fetchAuditLogs({
+                        type: AuditLogEvent.MemberUpdate,
+                        limit: 10
+                    });
+                    const entry = auditLogs.entries.find(e =>
+                        e.target.id === target.id &&
+                        e.changes?.some(c => c.key === 'communication_disabled_until')
+                    );
+                    if (entry) {
+                        timedOutBy = entry.executor?.tag || 'Unknown';
+                        timeoutReason = entry.reason || 'No reason provided';
+                    }
+                } catch {}
+
+                const targetTag = target.tag || `${target.username}#${target.discriminator}`;
+
+                const container = new ContainerBuilder()
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                        `${emoji.timeout} **Timeout Info**\n-# Requested by ${interaction.user.username} • <t:${Math.floor(Date.now() / 1000)}:t>`
+                    ))
+                    .addSeparatorComponents(new SeparatorBuilder())
+                    .addSectionComponents(
+                        new SectionBuilder()
+                            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                                `${emoji.user} **User :** ${targetTag}\n` +
+                                `${emoji.id} **User ID :** ${target.id}\n` +
+                                `${emoji.clock} **Expires :** <t:${expiresAt}:R>\n` +
+                                `${emoji.mod} **Timed Out By :** ${timedOutBy}\n` +
+                                `${emoji.reason} **Reason :** ${timeoutReason}`
+                            ))
+                            .setThumbnailAccessory((thumbnail) =>
+                                thumbnail.setURL(target.displayAvatarURL({ size: 256, dynamic: true }))
+                            )
+                    );
+
+                await interaction.reply({
+                    components: [container],
+                    flags: MessageFlags.IsComponentsV2
+                });
             };
 
             const initialComponents = [getMainContainer()];
@@ -220,6 +360,14 @@ module.exports = {
             });
 
             collector.on('collect', async (interaction) => {
+                if (interaction.customId === `ban_info_${target.id}`) {
+                    return handleBanInfo(interaction);
+                }
+
+                if (interaction.customId === `timeout_info_${target.id}`) {
+                    return handleTimeoutInfo(interaction);
+                }
+
                 let updatedContainer;
                 let currentView;
 

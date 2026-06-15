@@ -15,52 +15,72 @@ const { parseEmoji } = require('../../utils/emojiParser.js');
 
 const categoryInfo = {
     'Information': {
-        emoji: '<:icon_2:1490275264263880734>',
+        emoji: `${emoji.info}`,
         description: 'Shows information commands'
     },
     'Music': {
-        emoji: '<:muscik:1490275609975328779>',
+        emoji: `${emoji.music}`,
         description: 'Shows music commands'
     },
     'Favourite': {
-        emoji: '<:icon_11:1490275358443044924>',
+        emoji: `${emoji.favourite}`,
         description: 'Shows favourite commands'
     },
     'Config': {
-        emoji: '<:geea:1490275618406006866>',
+        emoji: `${emoji.config}`,
         description: 'Shows configuration commands'
     },
     'Utility': {
-        emoji: '<:bosz:1490275627406725252>',
+        emoji: `${emoji.utility}`,
         description: 'Shows utility commands'
     },
     'Giveaway': {
-        emoji: '<:icon_17:1490275459831697419>',
+        emoji: `${emoji.gwy}`,
         description: 'Shows giveaway commands'
     },
     'Filters': {
-        emoji: '<:floil:1490275636823195718>',
+        emoji: `${emoji.tracker}`,
         description: 'Shows filter commands'
     },
     'Tracker': {
-        emoji: '<:tradu:1490275644960018435>',
+        emoji: `${emoji.tracker}`,
         description: 'Shows invite tracking commands'
     },
     'Moderation': {
-        emoji: '<:icon_20:1490275548990279790>',
+        emoji: `${emoji.moderation}`,
         description: 'Shows moderation commands'
     },
     'Automod': {
-        emoji: '<:autoss:1490299455293882454>',
+        emoji: `${emoji.automod}`,
         description: 'Shows automod commands'
     },
     'Voice': {
         emoji: `${emoji.volup}`,
         description: 'Shows voice commands'
+    },
+    'Ticket': {
+        emoji: `${emoji.ticket}`,
+        description: 'Shows ticket commands'
+    },
+    'Leveling': {
+        emoji: `${emoji.starFill}`,
+        description: 'Shows leveling commands'
+    },
+    'Messages': {
+        emoji: `${emoji.hastag}`,
+        description: 'Shows message tracking commands'
+    },
+    'Greet': {
+        emoji: `${emoji.home}`,
+        description: 'Shows greet/welcome commands'
+    },
+    'Polls': {
+        emoji: `${emoji.hastag}`,
+        description: 'Shows poll commands'
     }
 };
 
-const categoryOrder = ['Information', 'Music', 'Favourite', 'Config', 'Moderation', 'Automod', 'Voice', 'Utility', 'Giveaway', 'Filters', 'Tracker'];
+const categoryOrder = ['Information', 'Music', 'Favourite', 'Config', 'Moderation', 'Automod', 'Voice', 'Utility', 'Giveaway', 'Filters', 'Tracker', 'Ticket', 'Leveling', 'Messages', 'Greet', 'Polls'];
 
 module.exports = {
     name: 'help',
@@ -139,6 +159,20 @@ module.exports = {
                     try {
                         const command = require(filePath);
                         const search = commandName.trim().toLowerCase().split(/\s+/)[0];
+
+                        if (command.all && Array.isArray(command.all)) {
+                            for (const sub of command.all) {
+                                const subAliases = Array.isArray(sub.aliases) ? sub.aliases : [];
+                                if (sub.name && (sub.name.toLowerCase() === search || subAliases.includes(search))) {
+                                    foundCommand = sub;
+                                    commandCategory = category;
+                                    break;
+                                }
+                            }
+                            if (foundCommand) break;
+                            continue;
+                        }
+
                         if (command.name && (command.name.toLowerCase() === search || (command.aliases && command.aliases.includes(search)))) {
                             foundCommand = command;
                             commandCategory = category;
@@ -260,6 +294,20 @@ module.exports = {
                 const filePath = path.join(categoryPath, file);
                 try {
                     const command = require(filePath);
+
+                    if (command.all && Array.isArray(command.all)) {
+                        for (const sub of command.all) {
+                            if (sub.name && sub.description) {
+                                categoryData[category].push({
+                                    name: sub.name,
+                                    description: sub.description,
+                                    emoji: sub.emoji
+                                });
+                            }
+                        }
+                        continue;
+                    }
+
                     if (command.name && command.description) {
                         categoryData[category].push({
                             name: command.name,
@@ -282,85 +330,21 @@ module.exports = {
             }
         }
 
-        const botName = client.user.username;
-        const headerDisplay = new TextDisplayBuilder()
-            .setContent(`### ${client.emoji.check} Help Menu\n-# Requested by ${interaction.user.displayName} • <t:${Math.floor(Date.now() / 1000)}:t>`);
-
-        const separator = new SeparatorBuilder();
-
-        const descriptionText = `**${botName}** is your ultimate multi-purpose companion, offering high-fidelity music from **YT Music**,**Spotify**,**Apple Music** and more. Featuring advanced **Moderation**, **Utility**, **Invites**, and more—all designed to elevate your server experience to the next level.`;
-
-        const descriptionDisplay = new TextDisplayBuilder()
-            .setContent(descriptionText);
-
-        const separator2 = new SeparatorBuilder();
-
-
-        const sortedCategories = categories.sort((a, b) => {
-            const indexA = categoryOrder.indexOf(a);
-            const indexB = categoryOrder.indexOf(b);
-            if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-            if (indexA === -1) return 1;
-            if (indexB === -1) return -1;
-            return indexA - indexB;
-        });
-
-        const categoryOptions = sortedCategories.map(cat => {
-            const info = categoryInfo[cat] || { emoji: '📁', description: `${cat.toLowerCase()} commands` };
-            return {
-                label: cat,
-                value: cat,
-                description: info.description,
-                emoji: parseEmoji(info.emoji)
-            };
-        });
-
-        categoryOptions.unshift({
-            label: 'Home',
-            value: 'home',
-            description: 'Go back to homepage',
-            emoji: parseEmoji('<:home:1490275655336857661>')
-        });
-
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('help_menu')
-            .setPlaceholder('Select a category...')
-            .addOptions(categoryOptions);
-
-        const row = new ActionRowBuilder().addComponents(selectMenu);
+        const descriptionText = `**${client.user.username}** is your ultimate multi-purpose companion, offering high-fidelity music from **YT Music**,**Spotify**,**Apple Music** and more. Featuring advanced **Moderation**, **Utility**, **Invites**, and more—all designed to elevate your server experience to the next level.`;
 
         const helpContainer = new ContainerBuilder()
-            .addTextDisplayComponents(headerDisplay)
-            .addSeparatorComponents(separator)
-            .addTextDisplayComponents(descriptionDisplay)
-            .addSeparatorComponents(separator2)
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${client.emoji.check} Help Menu\n-# Requested by ${interaction.user.displayName} • <t:${Math.floor(Date.now() / 1000)}:t>`))
+            .addSeparatorComponents(new SeparatorBuilder())
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(descriptionText))
+            .addSeparatorComponents(new SeparatorBuilder())
             .addActionRowComponents(row);
 
-        const sentMessage = await interaction.reply({
-            components: [helpContainer],
-            flags: MessageFlags.IsComponentsV2
-        });
-
+        const sentMessage = await interaction.reply({ components: [helpContainer], flags: MessageFlags.IsComponentsV2, fetchReply: true });
         let lastActiveContainer = helpContainer;
-
-        const collector = sentMessage.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 120000 });
-
-        collector.on('collect', async i => {
-            if (i.user.id !== interaction.user.id) {
-                const errorDisplay = new TextDisplayBuilder()
-                    .setContent(`**${emoji.cross} You can't use this menu.**`);
-
-                const errorContainer = new ContainerBuilder()
-                    .addTextDisplayComponents(errorDisplay);
-
-                return i.reply({
-                    components: [errorContainer],
-                    flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2
-                });
-            }
-
+        const filter = (i) => i.user.id === interaction.user.id;
+        const collector = sentMessage.createMessageComponentCollector({ componentType: ComponentType.StringSelect, filter, time: 60000 });
+        collector.on('collect', async (i) => {
             const selectedValue = i.values[0];
-
             if (selectedValue === 'home') {
                 lastActiveContainer = helpContainer;
                 await i.update({
@@ -373,39 +357,25 @@ module.exports = {
             const selectedCategory = selectedValue;
             const commandsList = categoryData[selectedCategory];
 
-            const categoryHeader = new TextDisplayBuilder()
-                .setContent(`### ${client.emoji.check} ${selectedCategory} Commands [${commandsList.length}]\n-# Requested by ${interaction.user.displayName} • <t:${Math.floor(Date.now() / 1000)}:t>`);
-
-            const catSeparator = new SeparatorBuilder();
-
             const commandsText = commandsList.length > 0
                 ? commandsList.map(cmd => `\`${cmd.name}\``).join(' , ')
                 : 'No commands found';
 
-            const commandsDisplay = new TextDisplayBuilder()
-                .setContent(commandsText);
-
-            const catSeparator2 = new SeparatorBuilder();
-
             let serverPrefix = config.prefix || '.';
             try {
-                const prefixData = client.db.prefixes.get(interaction.guild.id);
+                const prefixData = client.db.prefixes.get(i.guild.id);
                 if (prefixData && prefixData.prefix) {
                     serverPrefix = prefixData.prefix;
                 }
             } catch (err) {
             }
 
-            const tipText = `-# use \`${serverPrefix}help <cmd name>\` to get more details`;
-            const tipDisplay = new TextDisplayBuilder()
-                .setContent(tipText);
-
             const categoryContainer = new ContainerBuilder()
-                .addTextDisplayComponents(categoryHeader)
-                .addSeparatorComponents(catSeparator)
-                .addTextDisplayComponents(commandsDisplay)
-                .addSeparatorComponents(catSeparator2)
-                .addTextDisplayComponents(tipDisplay)
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${client.emoji.check} ${selectedCategory} Commands [${commandsList.length}]\n-# Requested by ${i.user.displayName} • <t:${Math.floor(Date.now() / 1000)}:t>`))
+                .addSeparatorComponents(new SeparatorBuilder())
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(commandsText))
+                .addSeparatorComponents(new SeparatorBuilder())
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# use \`${serverPrefix}help <cmd name>\` to get more details`))
                 .addActionRowComponents(row);
 
             lastActiveContainer = categoryContainer;
@@ -444,6 +414,20 @@ module.exports = {
                     try {
                         const command = require(filePath);
                         const search = commandName.trim().toLowerCase().split(/\s+/)[0];
+
+                        if (command.all && Array.isArray(command.all)) {
+                            for (const sub of command.all) {
+                                const subAliases = Array.isArray(sub.aliases) ? sub.aliases : [];
+                                if (sub.name && (sub.name.toLowerCase() === search || subAliases.includes(search))) {
+                                    foundCommand = sub;
+                                    commandCategory = category;
+                                    break;
+                                }
+                            }
+                            if (foundCommand) break;
+                            continue;
+                        }
+
                         if (command.name && (command.name.toLowerCase() === search || (command.aliases && command.aliases.includes(search)))) {
                             foundCommand = command;
                             commandCategory = category;
@@ -572,6 +556,20 @@ module.exports = {
                 const filePath = path.join(categoryPath, file);
                 try {
                     const command = require(filePath);
+
+                    if (command.all && Array.isArray(command.all)) {
+                        for (const sub of command.all) {
+                            if (sub.name && sub.description) {
+                                categoryData[category].push({
+                                    name: sub.name,
+                                    description: sub.description,
+                                    emoji: sub.emoji
+                                });
+                            }
+                        }
+                        continue;
+                    }
+
                     if (command.name && command.description) {
                         categoryData[category].push({
                             name: command.name,
@@ -631,7 +629,7 @@ module.exports = {
             label: 'Home',
             value: 'home',
             description: 'Go back to homepage',
-            emoji: parseEmoji('<:home:1490275655336857661>')
+            emoji: emoji.home
         });
 
         const selectMenu = new StringSelectMenuBuilder()

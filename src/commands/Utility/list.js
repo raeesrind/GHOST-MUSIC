@@ -131,13 +131,13 @@ module.exports = {
                 case 'activedeveloper':
                     title = 'Active Developer';
                     const membersDev = guild.members.cache;
-                    items = membersDev.filter(m => m.user.flags?.has('ActiveDeveloper')).map(m => ` <@${m.id}>`);
+                    items = membersDev.filter(m => m.user.flags?.has('ActiveDeveloper')).map(m => ` \u200B<@${m.id}>`);
                     break;
 
                 case 'admins':
                     title = 'Admins';
                     const membersAdmin = guild.members.cache;
-                    items = membersAdmin.filter(m => m.permissions.has(PermissionFlagsBits.Administrator)).map(m => ` <@${m.id}>`);
+                    items = membersAdmin.filter(m => m.permissions.has(PermissionFlagsBits.Administrator)).map(m => ` \u200B<@${m.id}>`);
                     break;
 
                 case 'bans':
@@ -149,13 +149,13 @@ module.exports = {
                 case 'boosters':
                     title = 'Boosters';
                     const membersBooster = guild.members.cache;
-                    items = membersBooster.filter(m => m.premiumSince).map(m => ` <@${m.id}>`);
+                    items = membersBooster.filter(m => m.premiumSince).map(m => ` \u200B<@${m.id}>`);
                     break;
 
                 case 'bots':
                     title = 'Bots';
                     const membersBot = guild.members.cache;
-                    items = membersBot.filter(m => m.user.bot).map(m => ` <@${m.id}> - \`${m.user.displayName}\``);
+                    items = membersBot.filter(m => m.user.bot).map(m => ` \u200B<@${m.id}> - \`${m.user.displayName}\``);
                     break;
 
                 case 'createdat':
@@ -163,13 +163,13 @@ module.exports = {
                     const membersCreated = guild.members.cache;
                     items = Array.from(membersCreated.values())
                         .sort((a, b) => a.user.createdTimestamp - b.user.createdTimestamp)
-                        .map(m => ` <@${m.id}> - <t:${Math.floor(m.user.createdTimestamp / 1000)}:D>`);
+                        .map(m => ` \u200B<@${m.id}> - <t:${Math.floor(m.user.createdTimestamp / 1000)}:D>`);
                     break;
 
                 case 'early':
                     title = 'Early Supporter';
                     const membersEarly = guild.members.cache;
-                    items = membersEarly.filter(m => m.user.flags?.has('PremiumEarlySupporter')).map(m => ` <@${m.id}>`);
+                    items = membersEarly.filter(m => m.user.flags?.has('PremiumEarlySupporter')).map(m => ` \u200B<@${m.id}>`);
                     break;
 
                 case 'emojis':
@@ -188,13 +188,13 @@ module.exports = {
                     }
                     title = `In Role: ${role.name}`;
                     const membersRole = guild.members.cache;
-                    items = membersRole.filter(m => m.roles.cache.has(role.id)).map(m => ` <@${m.id}>`);
+                    items = membersRole.filter(m => m.roles.cache.has(role.id)).map(m => ` \u200B<@${m.id}>`);
                     break;
 
                 case 'invoice':
                     title = 'In Voice';
                     const membersVoice = guild.members.cache;
-                    items = membersVoice.filter(m => m.voice.channelId).map(m => ` <@${m.id}>`);
+                    items = membersVoice.filter(m => m.voice.channelId).map(m => ` \u200B<@${m.id}>`);
                     break;
 
                 case 'joinedat':
@@ -202,7 +202,7 @@ module.exports = {
                     const membersJoined = guild.members.cache;
                     items = Array.from(membersJoined.values())
                         .sort((a, b) => (a.joinedTimestamp || 0) - (b.joinedTimestamp || 0))
-                        .map(m => ` <@${m.id}> - <t:${Math.floor(m.joinedTimestamp / 1000)}:D>`);
+                        .map(m => ` \u200B<@${m.id}> - <t:${Math.floor(m.joinedTimestamp / 1000)}:D>`);
                     break;
 
                 case 'mods':
@@ -213,7 +213,7 @@ module.exports = {
                         m.permissions.has(PermissionFlagsBits.ManageChannels) ||
                         m.permissions.has(PermissionFlagsBits.KickMembers) ||
                         m.permissions.has(PermissionFlagsBits.BanMembers)
-                    ).map(m => ` <@${m.id}>`);
+                    ).map(m => ` \u200B<@${m.id}>`);
                     break;
 
                 case 'roles':
@@ -226,7 +226,7 @@ module.exports = {
                 case 'users':
                     title = 'Users';
                     const membersUsers = guild.members.cache;
-                    items = membersUsers.map(m => ` <@${m.id}>`);
+                    items = membersUsers.map(m => ` \u200B<@${m.id}>`);
                     break;
 
                 default:

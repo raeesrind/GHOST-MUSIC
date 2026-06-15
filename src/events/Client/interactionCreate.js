@@ -12,9 +12,12 @@ module.exports = {
   name: "interactionCreate",
   run: async (client, interaction) => {
     let prefix = client.prefix;
-    const ress = client.db.prefixes.get(interaction.guildId);
-    if (ress && ress.prefix) prefix = ress.prefix;
-
+    if (interaction.guildId) {
+      try {
+        const ress = client.db.prefixes.get(interaction.guildId);
+        if (ress?.prefix) prefix = ress.prefix;
+      } catch { /* ignore DB errors for non-guild interactions */ }
+    }
 
 
     if (interaction.type === InteractionType.ApplicationCommandAutocomplete) {
@@ -88,6 +91,82 @@ module.exports = {
         }
       }
 
+      if (command.category === 'Music' && interaction.member.voice?.channel) {
+        const userVcId = interaction.member.voice.channel.id;
+        const mainPlayer = client.manager?.players?.get(interaction.guildId);
+        const mainBotInVc = mainPlayer && mainPlayer.voiceId === userVcId;
+
+        if (!mainBotInVc && mainPlayer) {
+          const launcherPort = client.launcherPort || 48901;
+          const http = require('http');
+
+          const cmdArgs = [];
+          if (interaction.options) {
+            const s = (k) => interaction.options.getString(k);
+            ['query','song','input','text','name','action'].forEach(k => {
+              const v = s(k); if (v) cmdArgs.push(...v.split(' '));
+            });
+            const n = interaction.options.getInteger('number');
+            if (n !== null && n !== undefined) cmdArgs.push(n.toString());
+            const a = interaction.options.getInteger('amount');
+            if (a !== null && a !== undefined) cmdArgs.push(a.toString());
+            const p = interaction.options.getInteger('position');
+            if (p !== null && p !== undefined) cmdArgs.push(p.toString());
+          }
+
+          const postData = JSON.stringify({
+            guildId: interaction.guildId,
+            channelId: userVcId,
+            textChannelId: interaction.channelId,
+            commandName: command.name,
+            cmdArgs,
+            prefix,
+            userId: interaction.user.id,
+          });
+
+          try {
+            const result = await new Promise((resolve, reject) => {
+              const req = http.request({
+                hostname: '127.0.0.1',
+                port: launcherPort,
+                path: '/route',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) },
+                timeout: 5000,
+              }, (res) => {
+                let body = '';
+                res.on('data', (chunk) => (body += chunk));
+                res.on('end', () => {
+                  try { resolve(JSON.parse(body)); } catch { resolve(null); }
+                });
+              });
+              req.on('error', () => resolve(null));
+              req.write(postData);
+              req.end();
+            });
+
+            if (result?.queued) {
+              const { ContainerBuilder: CB, TextDisplayBuilder: TDB, MessageFlags: MF } = require('discord.js');
+              const display = new TDB()
+                .setContent(`**⏳ All bots are busy. You are #${result.position} in queue.**`);
+              const container = new CB().addTextDisplayComponents(display);
+              if (interaction.replied || interaction.deferred) {
+                return interaction.editReply({ components: [container], flags: MF.IsComponentsV2 }).catch(() => {});
+              }
+              return interaction.reply({ components: [container], flags: MF.IsComponentsV2 }).catch(() => {});
+            }
+
+            if (result?.success) {
+              if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+              }
+              await interaction.deleteReply().catch(() => {});
+              return;
+            }
+          } catch {}
+        }
+      }
+
       const player = interaction.client.manager.players.get(
         interaction.guildId,
       );
@@ -137,6 +216,7 @@ module.exports = {
             .catch(() => { });
         }
       }
+
       if (command.sameVoiceChannel) {
         if (!interaction.guild || !interaction.guild.members.me) {
           const errorDisplay = new TextDisplayBuilder()
@@ -375,5 +455,9 @@ module.exports = {
       )
         return client.emit("playerButtons", interaction, data);
     }
+
+    const TicketManager = require("../../utils/ticketManager");
+    const handled = await TicketManager.handleInteraction(interaction, client).catch(() => false);
+    if (handled) return;
   },
 };
