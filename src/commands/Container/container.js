@@ -3,6 +3,8 @@ const {
     ContainerBuilder,
     TextDisplayBuilder,
     SeparatorBuilder,
+    SectionBuilder,
+    ThumbnailBuilder,
     MediaGalleryBuilder,
     MediaGalleryItemBuilder,
     ActionRowBuilder,
@@ -104,11 +106,14 @@ function renderIntoContainer(container, comp) {
             .setSpacing(spacing)
             .setDivider(comp.divider !== false));
     } else if (t === 'section') {
-        let content = comp.content || '';
-        if (comp.thumbnail_url) {
-            content += `\n\n[![](${comp.thumbnail_url})](${comp.thumbnail_url})`;
+        if (comp.content) {
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(comp.content));
         }
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+        if (comp.thumbnail_url) {
+            const section = new SectionBuilder()
+                .setThumbnailAccessory(new ThumbnailBuilder().setURL(comp.thumbnail_url));
+            container.addSectionComponents(section);
+        }
     } else if (t === 'media_gallery') {
         if (comp.urls && comp.urls.length > 0) {
             const gallery = new MediaGalleryBuilder();
@@ -425,7 +430,7 @@ function showSectionModal(interaction, state, index) {
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('thumbnail_url')
-                    .setLabel('Thumbnail URL (optional — leave blank to skip)')
+                    .setLabel('Thumbnail URL (leave blank to skip)')
                     .setStyle(TextInputStyle.Short)
                     .setRequired(false)
                     .setPlaceholder('https://example.com/image.png')
