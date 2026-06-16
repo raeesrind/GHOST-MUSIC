@@ -53,3 +53,4 @@ function getNextInQueue() {
 }
 
 module.exports = { getState, saveState, getFreeBot, assignBot, freeBot, addToQueue, removeFromQueue, getNextInQueue };
+
