@@ -1,8 +1,11 @@
 require('dotenv').config();
 const { REST, Routes } = require('discord.js');
 const config = require('./src/config');
+const fs = require('fs');
+const path = require('path');
 
-const commands = [
+// ─── Standalone commands (frozen, keep as-is) ──────────────────────
+const standaloneCommands = [
   {
     name: 'botemoji',
     description: 'Bot emoji manager — shows all commands',
@@ -21,24 +24,9 @@ const commands = [
     default_member_permissions: '8',
     dm_permission: false,
     options: [
-      {
-        name: 'image',
-        description: 'Image file (PNG/JPG/GIF/WEBP, max 256KB)',
-        type: 11,
-        required: false,
-      },
-      {
-        name: 'message_link',
-        description: 'Discord message link or raw :emoji_name:',
-        type: 3,
-        required: false,
-      },
-      {
-        name: 'name',
-        description: 'Custom name for the emoji',
-        type: 3,
-        required: false,
-      },
+      { name: 'image', description: 'Image file (PNG/JPG/GIF/WEBP, max 256KB)', type: 11, required: false },
+      { name: 'message_link', description: 'Discord message link or raw :emoji_name:', type: 3, required: false },
+      { name: 'name', description: 'Custom name for the emoji', type: 3, required: false },
     ],
   },
   {
@@ -47,12 +35,7 @@ const commands = [
     default_member_permissions: '8',
     dm_permission: false,
     options: [
-      {
-        name: 'name',
-        description: 'Emoji name to remove',
-        type: 3,
-        required: true,
-      },
+      { name: 'name', description: 'Emoji name to remove', type: 3, required: true },
     ],
   },
   {
@@ -61,18 +44,8 @@ const commands = [
     default_member_permissions: '8',
     dm_permission: false,
     options: [
-      {
-        name: 'old_name',
-        description: 'Current emoji name',
-        type: 3,
-        required: true,
-      },
-      {
-        name: 'new_name',
-        description: 'New emoji name',
-        type: 3,
-        required: true,
-      },
+      { name: 'old_name', description: 'Current emoji name', type: 3, required: true },
+      { name: 'new_name', description: 'New emoji name', type: 3, required: true },
     ],
   },
   {
@@ -83,23 +56,39 @@ const commands = [
   },
 ];
 
+// ─── Load group files from commands/groups/ ────────────────────────
+const groupsDir = path.join(__dirname, 'src', 'commands', 'groups');
+let groupCommands = [];
+if (fs.existsSync(groupsDir)) {
+  const groupFiles = fs.readdirSync(groupsDir).filter(f => f.endsWith('.js'));
+  for (const file of groupFiles) {
+    try {
+      delete require.cache[require.resolve(path.join(groupsDir, file))];
+      const mod = require(path.join(groupsDir, file));
+      if (mod && mod.data) {
+        groupCommands.push(mod.data.toJSON());
+      }
+    } catch (err) {
+      console.error(`Failed to load group ${file}:`, err.message);
+    }
+  }
+}
+
+// ─── Combine all commands ──────────────────────────────────────────
+const commands = [...standaloneCommands, ...groupCommands];
+
 const token = config.token;
-const clientId = config.token ? require('discord.js').Client.user?.id : null;
 
 async function deploy() {
   const rest = new REST({ version: '10' }).setToken(token);
 
   try {
-    console.log('Registering application commands...');
-
-    // Get the application ID from the token
+    console.log(`Registering ${commands.length} application commands...`);
     const appInfo = await rest.get(Routes.currentApplication());
     const applicationId = appInfo.id;
-
     console.log(`Application ID: ${applicationId}`);
 
     await rest.put(Routes.applicationCommands(applicationId), { body: commands });
-
     console.log(`Successfully registered ${commands.length} commands globally.`);
   } catch (error) {
     console.error('Failed to register commands:', error);

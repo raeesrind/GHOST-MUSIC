@@ -77,10 +77,14 @@ const categoryInfo = {
     'Polls': {
         emoji: `${emoji.hastag}`,
         description: 'Shows poll commands'
+    },
+    'Container': {
+        emoji: `${emoji.container}`,
+        description: 'Shows container builder commands'
     }
 };
 
-const categoryOrder = ['Information', 'Music', 'Favourite', 'Config', 'Moderation', 'Automod', 'Voice', 'Utility', 'Giveaway', 'Filters', 'Tracker', 'Ticket', 'Leveling', 'Messages', 'Greet', 'Polls'];
+const categoryOrder = ['Information', 'Music', 'Favourite', 'Config', 'Moderation', 'Automod', 'Voice', 'Utility', 'Giveaway', 'Filters', 'Tracker', 'Ticket', 'Leveling', 'Messages', 'Greet', 'Polls', 'Container'];
 
 module.exports = {
     name: 'help',

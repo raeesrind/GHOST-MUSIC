@@ -1,6 +1,17 @@
 const fs = require("fs");
 const path = require("path");
 
+// Load grouped command names so individual commands covered by groups are skipped from slash registration
+const GROUPS_DIR = path.join(__dirname, "../commands/groups");
+const GROUPED_JSON_PATH = path.join(GROUPS_DIR, "grouped-commands.json");
+let groupedNames = new Set();
+try {
+  if (fs.existsSync(GROUPED_JSON_PATH)) {
+    const arr = JSON.parse(fs.readFileSync(GROUPED_JSON_PATH, "utf8"));
+    groupedNames = new Set(arr);
+  }
+} catch {}
+
 function registerCommand(client, command) {
   client.commands.set(command.name, command);
   if (command.aliases && Array.isArray(command.aliases)) {
@@ -9,17 +20,24 @@ function registerCommand(client, command) {
     client.aliases.set(command.aliases, command.name);
   }
 
-  if (command.slashExecute || command.slashOptions || command.type) {
+  if (command.slashExecute || command.slashOptions || command.type || command.data) {
+    // Skip commands that are now covered by group files
+    if (command.name && groupedNames.has(command.name)) return;
+
     if ((command.category === "Music" || command.category === "Config" || command.category === "Favourite" || command.category === "Giveaway" || command.category === "Information") && !command.groupSlash) return;
 
+    const name = command.data ? command.data.name : command.name;
+    const description = command.data ? command.data.description : (command.description || "No description provided");
+    const options = command.data ? command.data.toJSON().options : (command.slashOptions || []);
+
     const slashData = {
-      name: command.name,
-      description: command.description || "No description provided",
-      options: command.slashOptions || [],
+      name,
+      description,
+      options,
       type: command.type || 1,
       category: command.category,
-      execute: command.execute,
-      slashExecute: command.slashExecute,
+      execute: command.data ? command.execute : command.execute,
+      slashExecute: command.data ? command.execute : command.slashExecute,
       autocomplete: command.autocomplete,
       run: command.run,
       player: command.player,
@@ -30,7 +48,7 @@ function registerCommand(client, command) {
       owner: command.owner || false,
     };
 
-    client.slashCommands.set(command.name, slashData);
+    client.slashCommands.set(name, slashData);
   }
 }
 
@@ -49,9 +67,8 @@ module.exports = (client) => {
       } else if (entry.name.endsWith(".js")) {
         const command = require(fullPath);
 
-        if (!command || !command.name) continue;
+        if (!command || !command.data && !command.name) continue;
 
-        // Support multi-command files via command.all array
         if (command.all && Array.isArray(command.all)) {
           for (const sub of command.all) {
             registerCommand(client, sub);

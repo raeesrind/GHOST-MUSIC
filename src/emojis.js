@@ -66,4 +66,5 @@ module.exports = {
   clock: "<a:dot:1510970405932892250>",
   ban: "<a:dot:1510970405932892250>",
   timeout: "<a:dot:1510970405932892250>",
+  container: "<:setting:1513436144375824536>",
 };
