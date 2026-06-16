@@ -8,6 +8,7 @@ const {
   MessageFlags
 } = require("discord.js");
 const { convertTime } = require("../../utils/convert.js");
+const SmartAutoplayEngine = require("../../utils/SmartAutoplayEngine");
 
 module.exports = {
   name: "playerSkip",
@@ -19,6 +20,12 @@ module.exports = {
 
       if (player.queue.current) {
         player.queue.previous.push(player.queue.current);
+      }
+
+      const previousTrack = player.queue.previous[player.queue.previous.length - 1];
+      if (previousTrack) {
+        const engine = SmartAutoplayEngine.getEngine(client, player);
+        engine.onTrackSkip(previousTrack, player.position || 0);
       }
 
       const channel = client.channels.cache.get(player.textId);

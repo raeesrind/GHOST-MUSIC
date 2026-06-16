@@ -90,8 +90,22 @@ module.exports = {
     },
     {
       name: "autoplay",
-      description: "Toggle autoplay for related songs",
-      type: 1
+      description: "Control smart autoplay mode",
+      type: 1,
+      options: [
+        {
+          name: "mode",
+          description: "Select autoplay mode",
+          type: 3,
+          required: false,
+          choices: [
+            { name: "OFF — No autoplay", value: "OFF" },
+            { name: "SIMILAR — Closely matching tracks only", value: "SIMILAR" },
+            { name: "DISCOVER — Explore outside comfort zone", value: "DISCOVER" },
+            { name: "SMART — Full smart autoplay (default)", value: "SMART" }
+          ]
+        }
+      ]
     },
     {
       name: "sleep",

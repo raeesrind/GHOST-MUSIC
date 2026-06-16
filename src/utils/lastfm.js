@@ -92,6 +92,33 @@ class LastFM {
         }
     }
 
+    async getTrackTags(artist, track) {
+        if (!this.apiKey) return [];
+        try {
+            const response = await axios.get(this.baseUrl, {
+                params: {
+                    method: 'track.getInfo',
+                    artist: artist,
+                    track: track,
+                    api_key: this.apiKey,
+                    format: 'json',
+                    autocorrect: 1
+                }
+            });
+
+            if (response.data && response.data.track && response.data.track.toptags && response.data.track.toptags.tag) {
+                const tags = response.data.track.toptags.tag;
+                if (Array.isArray(tags)) {
+                    return tags.map(t => t.name);
+                }
+                return [tags.name];
+            }
+            return [];
+        } catch (error) {
+            return [];
+        }
+    }
+
     async getTopTracksByTag(tag, limit = 10) {
         if (!this.apiKey) return [];
         try {

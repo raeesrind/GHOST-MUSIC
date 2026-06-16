@@ -9,6 +9,7 @@ const {
 } = require("discord.js");
 const { convertTime } = require("../../utils/convert.js");
 const emoji = require("../../emojis.js");
+const SmartAutoplayEngine = require("../../utils/SmartAutoplayEngine");
 
 module.exports = {
   name: "queue",
@@ -87,7 +88,7 @@ module.exports = {
       if (track) totalDuration += (track.length || 0);
     }
 
-    const generateContainer = (page) => {
+    const generateContainer = async (page) => {
       const start = page * multiple;
       const queueList = queue.slice(start, start + multiple);
 
@@ -119,6 +120,34 @@ module.exports = {
           .addTextDisplayComponents(queueDisplay);
       }
 
+      const autoplayEnabled = player.data?.get("autoplay");
+      if (autoplayEnabled && player.queue?.current) {
+        try {
+          const engine = SmartAutoplayEngine.getEngine(client, player);
+          const preview = await engine.getSmartQueuePreview(player.queue.current, 3);
+
+          if (preview.length > 0) {
+            const smartSeparator = new SeparatorBuilder();
+            const smartHeader = new TextDisplayBuilder()
+              .setContent(`### ${client.emoji.music} Up Next (Smart)`);
+
+            container.addSeparatorComponents(smartSeparator);
+            container.addTextDisplayComponents(smartHeader);
+
+            for (const item of preview) {
+              const t = item.candidate;
+              const smartDisplay = new TextDisplayBuilder()
+                .setContent(
+                  `**> ${t.title}** by ${t.author}\n` +
+                  `-# ${item.reason}`
+                );
+              container.addTextDisplayComponents(smartDisplay);
+            }
+          }
+        } catch (e) {
+        }
+      }
+
       return container;
     };
 
@@ -141,7 +170,7 @@ module.exports = {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    const components = [generateContainer(0)];
+    const components = [await generateContainer(0)];
     if (queue.length > 10) {
       components.push(row);
     }
@@ -185,7 +214,7 @@ module.exports = {
           return await queueMsg.delete().catch(() => { });
         }
 
-        const updatedComponents = [generateContainer(page), row];
+        const updatedComponents = [await generateContainer(page), row];
 
         await queueMsg.edit({
           components: updatedComponents,
@@ -193,9 +222,9 @@ module.exports = {
         }).catch(() => { });
       });
 
-      collector.on("end", () => {
+      collector.on("end", async () => {
         queueMsg.edit({
-          components: [generateContainer(page)]
+          components: [await generateContainer(page)]
         }).catch(() => { });
       });
     }

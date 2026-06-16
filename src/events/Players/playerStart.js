@@ -13,6 +13,7 @@
   ThumbnailBuilder
 } = require("discord.js");
 const { player_create } = require("../../config").Webhooks;
+const SmartAutoplayEngine = require("../../utils/SmartAutoplayEngine");
 
 const createButtonRow = (client, paused) => {
   return new ActionRowBuilder().addComponents(
@@ -269,6 +270,9 @@ async function handleButtonInteraction(interaction, player, client) {
 
             client.db.liked.set(interaction.user.id, songs);
 
+            const engine = SmartAutoplayEngine.getEngine(client, player);
+            engine.onTrackLike(currentLikeTrack);
+
             const display = new TextDisplayBuilder()
               .setContent(`**${client.emoji.check} Added \`${currentLikeTrack.title}\` to your favourite list.**`);
             const container = new ContainerBuilder()
@@ -441,6 +445,9 @@ async function handleTrackStart(client, player, track) {
     }
 
     player.data?.delete("playerEmptyProcessed");
+
+    const engine = SmartAutoplayEngine.getEngine(client, player);
+    engine.onTrackStart(track);
 
     const oldMessage = player.data?.get("message");
     if (oldMessage) {

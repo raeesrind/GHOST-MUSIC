@@ -47,7 +47,19 @@ module.exports = {
     .addSubcommand(sub =>
       sub
         .setName('autoplay')
-        .setDescription('Toggle autoplay mode')
+        .setDescription('Control smart autoplay mode')
+        .addStringOption(opt =>
+          opt
+            .setName('mode')
+            .setDescription('Select autoplay mode')
+            .setRequired(false)
+            .addChoices(
+              { name: 'OFF — No autoplay', value: 'OFF' },
+              { name: 'SIMILAR — Closely matching tracks only', value: 'SIMILAR' },
+              { name: 'DISCOVER — Explore outside comfort zone', value: 'DISCOVER' },
+              { name: 'SMART — Full smart autoplay (default)', value: 'SMART' }
+            )
+        )
     )
     .addSubcommand(sub =>
       sub
@@ -124,9 +136,13 @@ module.exports = {
     case 'search':
       if (search.slashExecute) return search.slashExecute(interaction, interaction.client);
       return search.execute(interaction, [], interaction.client, '/');
-    case 'autoplay':
+    case 'autoplay': {
+      const args = [];
+      const mode = interaction.options.getString('mode');
+      if (mode) args.push(mode);
       if (autoplay.slashExecute) return autoplay.slashExecute(interaction, interaction.client);
-      return autoplay.execute(interaction, [], interaction.client, '/');
+      return autoplay.execute(interaction, args, interaction.client, '/');
+    }
     case 'lyrics':
       if (lyrics.slashExecute) return lyrics.slashExecute(interaction, interaction.client);
       return lyrics.execute(interaction, [], interaction.client, '/');
