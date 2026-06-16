@@ -6,6 +6,7 @@ module.exports = (client) => {
   let totalEvents = 0;
 
   fs.readdirSync(clientEventsPath).forEach((file) => {
+    if (!file.endsWith('.js')) return;
     const event = require(path.join(clientEventsPath, file));
     client.on(event.name, (...args) => event.run(client, ...args));
     totalEvents++;

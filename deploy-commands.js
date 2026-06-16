@@ -54,6 +54,24 @@ const standaloneCommands = [
     default_member_permissions: '8',
     dm_permission: false,
   },
+  {
+    name: 'healthcheck',
+    description: 'Check the status of all loaded commands',
+    dm_permission: false,
+    options: [
+      {
+        name: 'type',
+        description: 'Filter by command type',
+        type: 3,
+        required: false,
+        choices: [
+          { name: 'All', value: 'all' },
+          { name: 'Slash', value: 'slash' },
+          { name: 'Prefix', value: 'prefix' },
+        ],
+      },
+    ],
+  },
 ];
 
 // ─── Load group files from commands/groups/ ────────────────────────

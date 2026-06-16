@@ -15,7 +15,9 @@ module.exports = {
   once: false,
   run: async (client, message) => {
     try {
-      if (message.author.bot) return;
+      // TEMP: remove after top.gg testing
+      const TESTER_BOT_ID = "1513558253680721920";
+      if (message.author.bot && message.author.id !== TESTER_BOT_ID) return;
       if (!message.guild) return;
 
       try {
